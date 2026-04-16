@@ -1,0 +1,41 @@
+{
+  "name": "getmem",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for getmem.ai Memory API",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.3"
+  },
+  "license": "MIT",
+  "keywords": [
+    "getmem",
+    "memory",
+    "ai",
+    "llm",
+    "context"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/getmem-ai/getmem-js"
+  },
+  "homepage": "https://getmem.ai",
+  "bugs": {
+    "url": "https://github.com/getmem-ai/getmem-js/issues"
+  }
+}
