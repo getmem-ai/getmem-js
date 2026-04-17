@@ -1,6 +1,6 @@
 {
   "name": "getmem",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "TypeScript SDK for getmem.ai Memory API",
   "type": "module",
   "main": "dist/index.js",
@@ -20,7 +20,7 @@
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
-    "typescript": "^5.5.3"
+    "typescript": "^5.9.3"
   },
   "license": "MIT",
   "keywords": [
