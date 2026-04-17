@@ -79,4 +79,6 @@ export interface GetMemConfig {
   baseUrl?: string;
   /** Request timeout in ms. Default: 30000 */
   timeout?: number;
+  /** Max retry attempts for retryable errors. Default: 3 */
+  maxRetries?: number;
 }
