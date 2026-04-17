@@ -397,7 +397,47 @@ message = client.messages.create(
 - Live demo: https://getmem.ai/demo-chat.html
 - Compact docs: https://getmem.ai/llms.txt
 
-## OpenClaw integration
+## OpenClaw plugin (zero-code)
+
+## OpenClaw plugin (zero-code install)
+
+getmem.ai ships a native OpenClaw plugin that hooks into the message pipeline automatically.
+No code changes needed — install, configure, restart.
+
+```bash
+# 1. Install the plugin
+openclaw plugins install clawhub:@getmem/openclaw-getmem
+
+# 2. Set your API key
+openclaw config set plugins.openclaw-getmem.apiKey gm_live_...
+
+# 3. Restart the gateway
+openclaw gateway restart
+```
+
+Configuration options:
+
+| Key | Required | Default | Description |
+|-----|----------|---------|-------------|
+| `plugins.openclaw-getmem.apiKey` | ✅ | — | Your getmem.ai API key |
+| `plugins.openclaw-getmem.baseUrl` | — | `https://memory.getmem.ai` | Custom endpoint |
+| `plugins.openclaw-getmem.enabled` | — | `true` | Toggle memory off without uninstalling |
+
+### How the plugin works
+
+The plugin registers two hooks in the OpenClaw message pipeline:
+
+1. **`message:received`** — before the agent responds, fetches relevant memory for the sender
+   and pushes it as context
+2. **`message:sent`** — after the agent replies, ingests the conversation exchange into memory
+   (fire-and-forget, never blocks the response)
+
+Memory is scoped per user (by sender ID) and retrieved via semantic search.
+Only relevant context is injected — not the full history.
+
+Plugin source: https://github.com/getmem-ai/openclaw-getmem
+
+## OpenClaw — manual SDK integration
 
 getmem.ai works natively with OpenClaw agents. Add two lines to your message handler.
 
