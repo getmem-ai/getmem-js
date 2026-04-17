@@ -43,7 +43,11 @@ import { GetMem } from 'getmem';
 const mem = new GetMem({ apiKey: 'gm_live_...' });
 
 const { context } = await mem.getContext('user-123', userMessage);
-await mem.ingestConversation('user-123', userMessage, reply);
+await mem.ingest('user-123', [
+  { role: 'user', content: userMessage },
+  { role: 'assistant', content: reply },
+]);
+// Shorthand: mem.ingestConversation('user-123', userMessage, reply);
 ```
 
 ## Key features
@@ -209,7 +213,11 @@ mem = getmem.init(os.environ["GETMEM_API_KEY"])
 async def handle_message(user_id, message, session):
     context = mem.get(user_id, query=message)["context"]
     reply = await session.llm(message, system=context)
-    mem.ingest_conversation(user_id, message, reply)
+    mem.ingest(user_id, messages=[
+    {"role": "user", "content": message},
+    {"role": "assistant", "content": reply},
+])
+# Shorthand: mem.ingest_conversation(user_id, message, reply)
     return reply
 ```
 
@@ -240,5 +248,9 @@ mem.ingest(user_id, messages=[
     {"role": "user", "content": user_message},
     {"role": "assistant", "content": reply},
 ])
-# shorthand: mem.ingest_conversation(user_id, user_message, reply)
+# shorthand: mem.ingest(user_id, messages=[
+    {"role": "user", "content": user_message},
+    {"role": "assistant", "content": reply},
+])
+# Shorthand: mem.ingest_conversation(user_id, user_message, reply)
 ```
