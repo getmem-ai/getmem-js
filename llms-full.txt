@@ -155,7 +155,11 @@ mem.ingest("user_123", messages=[
 ])
 
 # Convenience: single exchange
-mem.ingest_conversation("user_123", user_message, reply)
+mem.ingest("user_123", messages=[
+    {"role": "user", "content": user_message},
+    {"role": "assistant", "content": reply},
+])
+# Shorthand: mem.ingest_conversation("user_123", user_message, reply)
 
 # Health check
 health = mem.health()
@@ -203,7 +207,11 @@ await mem.ingest('user-123', [
 ]);
 
 // Convenience
-await mem.ingestConversation('user-123', userMessage, reply);
+await mem.ingest('user-123', [
+  { role: 'user', content: userMessage },
+  { role: 'assistant', content: reply },
+]);
+// Shorthand: mem.ingestConversation('user-123', userMessage, reply);
 
 // Health
 const health = await mem.health();
@@ -364,7 +372,11 @@ def chat(user_id, user_message):
     {"role": "user", "content": user_message},
     {"role": "assistant", "content": reply},
 ])
-# shorthand: mem.ingest_conversation(user_id, user_message, reply)
+# shorthand: mem.ingest(user_id, messages=[
+    {"role": "user", "content": user_message},
+    {"role": "assistant", "content": reply},
+])
+# Shorthand: mem.ingest_conversation(user_id, user_message, reply)
     return reply
 ```
 
@@ -469,7 +481,29 @@ Full SKILL.md format compatible with OpenClaw's skill system:
 ---
 name: getmem
 description: 'Persistent memory for AI agents via getmem.ai. Remembers users across
-  sessions. Use mem.get() before each LLM call and mem.ingest_conversation() after.'
+  sessions. Use mem.get() before each LLM call and mem.ingest() after.'
+metadata:
+  openclaw:
+    emoji: 🧠
+    install:
+      - id: pip-getmem
+        kind: pip
+        package: getmem-ai
+        label: Install getmem-ai (pip)
+---
+
+## Setup
+Set GETMEM_API_KEY=gm_live_... in your environment.
+
+## Usage
+import getmem_ai as getmem, messages=[
+    {"role": "user", "content": os
+mem = getmem.init(os.environ["GETMEM_API_KEY"])
+
+context = mem.get(user_id},
+    {"role": "assistant", "content": query=user_message},
+])
+# Shorthand: mem.ingest_conversation() after.'
 metadata:
   openclaw:
     emoji: 🧠
@@ -492,7 +526,11 @@ mem.ingest(user_id, messages=[
     {"role": "user", "content": user_message},
     {"role": "assistant", "content": reply},
 ])
-# shorthand: mem.ingest_conversation(user_id, user_message, reply)
+# shorthand: mem.ingest(user_id, messages=[
+    {"role": "user", "content": user_message},
+    {"role": "assistant", "content": reply},
+])
+# Shorthand: mem.ingest_conversation(user_id, user_message, reply)
 ```
 
 Drop SKILL.md into your skills directory. Any agent that loads this skill gets persistent memory. No backend changes required.
