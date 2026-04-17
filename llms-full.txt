@@ -396,3 +396,52 @@ message = client.messages.create(
 - JavaScript SDK (npm): https://npmjs.com/package/getmem
 - Live demo: https://getmem.ai/demo-chat.html
 - Compact docs: https://getmem.ai/llms.txt
+
+## OpenClaw integration
+
+getmem.ai works natively with OpenClaw agents. Add two lines to your message handler.
+
+```python
+import getmem_ai as getmem, os
+mem = getmem.init(os.environ["GETMEM_API_KEY"])
+
+async def handle_message(user_id, message, session):
+    context = mem.get(user_id, query=message)["context"]
+    reply = await session.llm(message, system=context)
+    mem.ingest_conversation(user_id, message, reply)
+    return reply
+```
+
+Set GETMEM_API_KEY=gm_live_... in your OpenClaw .env or gateway config.
+
+## Agent Skill (SKILL.md)
+
+Full SKILL.md format compatible with OpenClaw's skill system:
+
+```yaml
+---
+name: getmem
+description: 'Persistent memory for AI agents via getmem.ai. Remembers users across
+  sessions. Use mem.get() before each LLM call and mem.ingest_conversation() after.'
+metadata:
+  openclaw:
+    emoji: 🧠
+    install:
+      - id: pip-getmem
+        kind: pip
+        package: getmem-ai
+        label: Install getmem-ai (pip)
+---
+
+## Setup
+Set GETMEM_API_KEY=gm_live_... in your environment.
+
+## Usage
+import getmem_ai as getmem, os
+mem = getmem.init(os.environ["GETMEM_API_KEY"])
+
+context = mem.get(user_id, query=user_message)["context"]
+mem.ingest_conversation(user_id, user_message, reply)
+```
+
+Drop SKILL.md into your skills directory. Any agent that loads this skill gets persistent memory. No backend changes required.
