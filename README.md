@@ -156,7 +156,11 @@ const mem = new GetMem({ apiKey: process.env.GETMEM_API_KEY! });
 async function handleMessage(userId: string, message: string, session: any) {
   const { context } = await mem.getContext(userId, message);
   const reply = await session.llm(message, { system: context });
-  await mem.ingestConversation(userId, message, reply);
+  await mem.ingest(userId, [
+  { role: 'user', content: message },
+  { role: 'assistant', content: reply },
+]);
+// Shorthand: await mem.ingestConversation(userId, message, reply);
   return reply;
 }
 ```
