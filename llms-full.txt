@@ -360,7 +360,11 @@ def chat(user_id, user_message):
     reply = response.choices[0].message.content
 
     # Save memory async
-    mem.ingest_conversation(user_id, user_message, reply)
+    mem.ingest(user_id, messages=[
+    {"role": "user", "content": user_message},
+    {"role": "assistant", "content": reply},
+])
+# shorthand: mem.ingest_conversation(user_id, user_message, reply)
     return reply
 ```
 
@@ -448,7 +452,10 @@ mem = getmem.init(os.environ["GETMEM_API_KEY"])
 async def handle_message(user_id, message, session):
     context = mem.get(user_id, query=message)["context"]
     reply = await session.llm(message, system=context)
-    mem.ingest_conversation(user_id, message, reply)
+    mem.ingest(user_id, messages=[
+    {"role": "user", "content": message},
+    {"role": "assistant", "content": reply},
+])
     return reply
 ```
 
@@ -481,7 +488,11 @@ import getmem_ai as getmem, os
 mem = getmem.init(os.environ["GETMEM_API_KEY"])
 
 context = mem.get(user_id, query=user_message)["context"]
-mem.ingest_conversation(user_id, user_message, reply)
+mem.ingest(user_id, messages=[
+    {"role": "user", "content": user_message},
+    {"role": "assistant", "content": reply},
+])
+# shorthand: mem.ingest_conversation(user_id, user_message, reply)
 ```
 
 Drop SKILL.md into your skills directory. Any agent that loads this skill gets persistent memory. No backend changes required.
