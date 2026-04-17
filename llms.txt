@@ -186,7 +186,19 @@ A: All of them — OpenAI, Anthropic, Gemini, Mistral, LLaMA, etc. getmem return
 - Live demo: https://getmem.ai/demo-chat.html
 - Full docs: https://getmem.ai/llms-full.txt
 
-## OpenClaw integration
+## OpenClaw plugin (zero-code)
+
+Install once — no code changes needed:
+
+```bash
+openclaw plugins install clawhub:@getmem/openclaw-getmem
+openclaw config set plugins.openclaw-getmem.apiKey gm_live_...
+openclaw gateway restart
+```
+
+Plugin source: https://github.com/getmem-ai/openclaw-getmem
+
+## OpenClaw — manual SDK integration
 
 getmem.ai works natively with OpenClaw agents. Two lines added to your message handler gives every user persistent memory.
 
