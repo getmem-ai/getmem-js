@@ -1,135 +1,121 @@
-# getmem
+# @getmem/sdk
 
-TypeScript/JavaScript SDK for [getmem.ai](https://getmem.ai) — persistent memory for AI agents.
-
-[![npm version](https://img.shields.io/npm/v/getmem.svg)](https://npmjs.com/package/getmem)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+TypeScript SDK for [getmem.ai](https://getmem.ai) Memory API.
 
 ## Install
 
 ```bash
-npm install getmem
+npm install @getmem/sdk
 ```
 
 ## Quick Start
 
 ```typescript
-import { GetMem } from 'getmem';
+import { GetMem } from '@getmem/sdk';
 
-const mem = new GetMem({ apiKey: 'gm_live_...' });
+const mem = new GetMem({
+  apiKey: 'gm_live_...',
+});
 
-// Before each LLM call — get relevant context
-const { context } = await mem.getContext('user-123', userMessage);
+// Get memory context for an LLM prompt
+const { context, memories, meta } = await mem.getContext('user-123', 'What do you know about me?');
 
-// After each turn — save conversation to memory
-await mem.ingestConversation('user-123', userMessage, reply);
+console.log(context);        // ready-to-use context string for system prompt
+console.log(meta.total_ms);  // request timing
 ```
 
 ## Usage with OpenAI
 
 ```typescript
-import { GetMem } from 'getmem';
+import { GetMem } from '@getmem/sdk';
 import OpenAI from 'openai';
 
 const mem = new GetMem({ apiKey: 'gm_live_...' });
 const openai = new OpenAI({ apiKey: 'sk-...' });
 
 const userId = 'user-123';
-const userMessage = 'Tell me about my preferences';
+const userMessage = 'Tell me something about my hobbies';
 
 // 1. Get memory context
 const { context } = await mem.getContext(userId, userMessage);
 
-// 2. Call LLM with memory injected
+// 2. Call LLM with memory as context
 const completion = await openai.chat.completions.create({
   model: 'gpt-4o-mini',
   messages: [
-    { role: 'system', content: `You are a helpful assistant.\n\n## Memory\n${context}` },
+    { role: 'system', content: `You are a helpful assistant.\n\n## Memory Context\n${context}` },
     { role: 'user', content: userMessage },
   ],
 });
+
 const reply = completion.choices[0].message.content!;
 
 // 3. Save conversation to memory
 await mem.ingestConversation(userId, userMessage, reply);
 ```
 
-## API Reference
+## API
 
 ### `new GetMem(config)`
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `apiKey` | `string` | *required* | Your getmem API key |
-| `baseUrl` | `string` | `https://memory.getmem.ai` | API base URL |
-| `timeout` | `number` | `30000` | Request timeout (ms) |
-| `maxRetries` | `number` | `3` | Max retries for retryable errors |
+| Option    | Type     | Default                        | Description         |
+|-----------|----------|--------------------------------|---------------------|
+| `apiKey`  | `string` | *required*                     | API key             |
+| `baseUrl` | `string` | `https://memory.getmem.ai`     | API base URL        |
+| `timeout` | `number` | `30000`                        | Request timeout, ms |
 
-### `mem.getContext(userId, query)` → Promise<GetResponse>
+### `mem.getContext(userId, query)`
 
 Retrieve relevant memory context. Returns:
 
 ```typescript
 {
-  context: string;        // ready for LLM system prompt
-  memories: MemoryItem[]; // individual items with relevance scores
-  meta: ContextMeta;      // timings, token count, entities
+  context: string;          // ready for LLM system prompt
+  memories: MemoryItem[];   // individual items with scores
+  meta: ContextMeta;        // timings, token count, entities
 }
 ```
 
-### `mem.ingest(userId, messages, sessionId?)` → Promise<IngestResponse>
+### `mem.ingest(userId, messages, sessionId?)`
 
-Ingest raw messages. Returns immediately — extraction is async.
+Ingest raw messages into memory.
 
 ```typescript
 await mem.ingest('user-123', [
-  { role: 'user', content: 'I love hiking', timestamp: new Date().toISOString() },
-  { role: 'assistant', content: 'Great hobby!' },
-]);
+  { role: 'user', content: 'I like fishing', timestamp: new Date().toISOString() },
+  { role: 'assistant', content: 'Great hobby!', timestamp: new Date().toISOString() },
+], 'session-abc');
 ```
 
-### `mem.ingestConversation(userId, userMessage, assistantMessage, sessionId?)` → Promise<IngestResponse>
+### `mem.ingestConversation(userId, userMessage, assistantMessage, sessionId?)`
 
-Convenience method for a single user + assistant exchange.
-
-### `mem.health()` → Promise<HealthResponse>
-
-Health check — returns service status and component health.
-
-### Error Handling
+Convenience method for a single user+assistant exchange.
 
 ```typescript
-import {
-  UnauthorizedError,
-  QuotaExceededError,
-  RateLimitedError,
-  ValidationError,
-  InternalError,
-  ServiceUnavailableError,
-} from 'getmem';
+await mem.ingestConversation('user-123', 'I like fishing', 'Great hobby!');
+```
+
+### `mem.health()`
+
+Health check. Returns service status and component health.
+
+### Error handling
+
+```typescript
+import { GetMemError } from '@getmem/sdk';
 
 try {
-  const { context } = await mem.getContext('user-123', 'hello');
-} catch (err) {
-  if (err instanceof UnauthorizedError) {
-    console.error('Check your API key');
-  } else if (err instanceof QuotaExceededError) {
-    console.error(`Quota resets at: ${err.resetAt}`);
-  } else if (err instanceof RateLimitedError) {
-    // SDK retries automatically
+  await mem.getContext('user-123', 'hello');
+} catch (e) {
+  if (e instanceof GetMemError) {
+    console.error(e.status, e.body);
   }
 }
 ```
 
-**Retryable errors** (SDK retries automatically):
+## Custom base URL
 
-| Error | Strategy |
-|-------|----------|
-| `RateLimitedError` (429) | Sleep `retryAfter` seconds |
-| `InternalError` (500) | Backoff: 1s, 2s, 4s |
-| `ServiceUnavailableError` (503) | Backoff: 2s, 4s, 8s |
-
-## Custom Base URL
+For local development or self-hosted instances:
 
 ```typescript
 const mem = new GetMem({
@@ -138,10 +124,39 @@ const mem = new GetMem({
 });
 ```
 
-## Links
+## OpenClaw integration
 
-- **Docs & dashboard:** [platform.getmem.ai](https://platform.getmem.ai)
-- **Website:** [getmem.ai](https://getmem.ai)
-- **PyPI (Python):** [pypi.org/project/getmem-ai](https://pypi.org/project/getmem-ai/)
-- **GitHub (Python SDK):** [github.com/getmem-ai/getmem](https://github.com/getmem-ai/getmem)
-- **Issues:** [github.com/getmem-ai/getmem-js/issues](https://github.com/getmem-ai/getmem-js/issues)
+```typescript
+import { GetMem } from 'getmem';
+
+const mem = new GetMem({ apiKey: process.env.GETMEM_API_KEY! });
+
+async function handleMessage(userId: string, message: string, session: any) {
+  const { context } = await mem.getContext(userId, message);
+  const reply = await session.llm(message, { system: context });
+  await mem.ingestConversation(userId, message, reply);
+  return reply;
+}
+```
+
+## Agent Skill (SKILL.md)
+
+```yaml
+---
+name: getmem
+description: 'Persistent memory for AI agents via getmem.ai.'
+metadata:
+  openclaw:
+    emoji: 🧠
+    install:
+      - id: npm-getmem
+        kind: node
+        package: getmem
+        label: Install getmem (npm)
+---
+
+import { GetMem } from 'getmem';
+const mem = new GetMem({ apiKey: process.env.GETMEM_API_KEY });
+const { context } = await mem.getContext(userId, userMessage);
+await mem.ingestConversation(userId, userMessage, reply);
+```
