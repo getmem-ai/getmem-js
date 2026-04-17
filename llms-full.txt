@@ -1,0 +1,398 @@
+# getmem.ai — Full Technical Documentation
+
+## Overview
+
+getmem.ai is a persistent memory API for AI agents and LLM applications. It solves the context problem: AI agents forget everything between sessions, resulting in poor user experience, repeated questions, and bloated prompts that waste tokens and money.
+
+**Core value propositions:**
+1. Automatic memory extraction from raw conversations — no schemas, no parsing logic
+2. Intelligent context retrieval — sends only what's relevant, saving up to 95% on LLM tokens
+3. Indefinite storage — no TTL, no purge. Build AI that remembers across a lifetime.
+4. Two API calls to integrate — mem.ingest() and mem.get()
+
+## Install
+
+```bash
+# Python
+pip install getmem-ai       # https://pypi.org/project/getmem-ai/
+
+# JavaScript / TypeScript
+npm install getmem          # https://npmjs.com/package/getmem
+```
+
+**SDK versions:** Python 0.1.1, JavaScript 0.1.1
+**License:** MIT (SDKs)
+
+## Authentication
+
+All API requests require a Bearer token:
+
+```
+Authorization: Bearer gm_live_...
+```
+
+API keys start with `gm_`. Get yours at https://platform.getmem.ai
+
+## API Base URL
+
+```
+https://memory.getmem.ai
+```
+
+## Core Endpoints
+
+### POST /v1/memory/ingest
+
+Ingest conversation messages into memory. Extraction runs asynchronously — returns immediately.
+
+**Request:**
+```json
+{
+  "user_id": "user_123",
+  "messages": [
+    {"role": "user", "content": "I love hiking in the mountains", "timestamp": "2026-04-17T10:00:00Z"},
+    {"role": "assistant", "content": "That sounds amazing!", "timestamp": "2026-04-17T10:00:01Z"}
+  ],
+  "session_id": "optional-session-id"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "accepted",
+  "messages_accepted": 2,
+  "extraction_queued": true,
+  "request_id": "req_abc123"
+}
+```
+
+**Required fields:** user_id (string), messages (array of MessageIn)
+**MessageIn fields:** role (string), content (string), timestamp (ISO 8601, optional)
+
+### POST /v1/memory/get
+
+Retrieve relevant memory context for a query.
+
+**Request:**
+```json
+{
+  "user_id": "user_123",
+  "query": "What does the user like to do outdoors?"
+}
+```
+
+**Response:**
+```json
+{
+  "context": "User enjoys hiking in mountains. Prefers outdoor activities over indoor ones.",
+  "memories": [
+    {
+      "id": "mem_xyz",
+      "type": "preference",
+      "text": "Enjoys hiking in mountains",
+      "relevance_score": 0.94,
+      "source": "conversation",
+      "created_at": "2026-04-17T10:00:05Z"
+    }
+  ],
+  "meta": {
+    "total_ms": 87,
+    "decompose_ms": 12,
+    "search_ms": 45,
+    "graph_ms": 18,
+    "enrich_ms": 8,
+    "rank_ms": 4,
+    "token_count": 312,
+    "memory_count": 5,
+    "entities_found": ["hiking", "mountains", "outdoors"]
+  }
+}
+```
+
+### GET /v1/health
+
+Returns service health. Does not require authentication.
+
+```json
+{
+  "status": "healthy",
+  "version": "0.1.0",
+  "services": {
+    "redis": "ok",
+    "qdrant": "ok",
+    "memgraph": "ok"
+  }
+}
+```
+
+## SDK Usage — Python
+
+```python
+import getmem_ai as getmem
+
+# Initialise
+mem = getmem.init("gm_live_...")
+
+# With all options
+mem = getmem.init(
+    api_key="gm_live_...",
+    base_url="https://memory.getmem.ai",  # or custom
+    timeout=30,
+    max_retries=3,
+)
+
+# Get context before LLM call
+result = mem.get("user_123", query=user_message)
+context = result["context"]      # inject into system prompt
+memories = result["memories"]    # individual items with scores
+meta = result["meta"]            # timings, token count
+
+# Ingest after LLM response
+mem.ingest("user_123", messages=[
+    {"role": "user", "content": user_message},
+    {"role": "assistant", "content": reply},
+])
+
+# Convenience: single exchange
+mem.ingest_conversation("user_123", user_message, reply)
+
+# Health check
+health = mem.health()
+```
+
+### Python error types
+
+```python
+from getmem_ai import (
+    GetMemError,            # base
+    APIError,               # has: error_code, details, request_id, status_code
+    UnauthorizedError,      # 401 — fix API key
+    QuotaExceededError,     # 402 — check e.reset_at
+    ForbiddenError,         # 403 — check e.required_scope
+    NotFoundError,          # 404
+    ValidationError,        # 422 — check e.field_errors
+    RateLimitedError,       # 429 — auto-retried, e.retry_after
+    InternalError,          # 500 — auto-retried
+    ServiceUnavailableError,# 503 — auto-retried
+    ConnectionError,        # network failure
+    TimeoutError,           # request timeout
+)
+```
+
+## SDK Usage — JavaScript / TypeScript
+
+```typescript
+import { GetMem } from 'getmem';
+
+// Initialise
+const mem = new GetMem({
+  apiKey: 'gm_live_...',
+  baseUrl: 'https://memory.getmem.ai',  // optional
+  timeout: 30000,                        // ms, optional
+  maxRetries: 3,                         // optional
+});
+
+// Get context
+const { context, memories, meta } = await mem.getContext('user-123', userMessage);
+
+// Ingest
+await mem.ingest('user-123', [
+  { role: 'user', content: userMessage },
+  { role: 'assistant', content: reply },
+]);
+
+// Convenience
+await mem.ingestConversation('user-123', userMessage, reply);
+
+// Health
+const health = await mem.health();
+```
+
+### TypeScript error types
+
+```typescript
+import {
+  GetMemError,              // base
+  APIError,                 // has: errorCode, details, requestId, statusCode
+  UnauthorizedError,        // 401
+  QuotaExceededError,       // 402 — .resetAt
+  ForbiddenError,           // 403 — .requiredScope, .availableScopes
+  NotFoundError,            // 404
+  ValidationError,          // 422 — .fieldErrors
+  RateLimitedError,         // 429 — .retryAfter (auto-retried)
+  InternalError,            // 500 (auto-retried)
+  ServiceUnavailableError,  // 503 (auto-retried)
+  ConnectionError,          // network failure
+  TimeoutError,             // request timeout
+} from 'getmem';
+```
+
+## Error Response Format
+
+All API errors:
+```json
+{
+  "error": "rate_limited",
+  "message": "Too many requests",
+  "details": { "retry_after": 42.5, "current": 101, "limit": 100 },
+  "request_id": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+Validation errors (422) use FastAPI format:
+```json
+{
+  "detail": [
+    {"loc": ["body", "user_id"], "msg": "Field required", "type": "missing"}
+  ]
+}
+```
+
+## Retry behaviour
+
+| Status | Error | SDK behaviour |
+|--------|-------|---------------|
+| 429 | rate_limited | Sleep retry_after seconds, retry |
+| 500 | internal_error | Backoff 1s → 2s → 4s, max 3 retries |
+| 503 | service_unavailable | Backoff 2s → 4s → 8s, max 3 retries |
+| 401 | unauthorized | Throw immediately |
+| 402 | quota_exceeded | Throw immediately |
+| 403 | forbidden | Throw immediately |
+| 404 | not_found | Throw immediately |
+| 422 | validation | Throw immediately |
+
+## Memory architecture
+
+getmem uses a four-database architecture — all on your infrastructure if self-hosted:
+
+| Database | Role |
+|----------|------|
+| PostgreSQL | Master entity store — people, projects, approvals, metadata |
+| ClickHouse | Columnar analytics — time-series, trend analysis, fast aggregations |
+| Qdrant | Vector database — semantic search, similarity retrieval |
+| Graph DB | Relationship mapping — entity connections, dependency chains |
+
+## Memory types
+
+Extracted memories are categorised into 8 typed buckets:
+
+| Type | Description |
+|------|-------------|
+| preference | User preferences, style choices, likes/dislikes |
+| fact | Factual statements about the user or their context |
+| decision | Decisions made, choices taken |
+| goal | User goals, intentions, objectives |
+| constraint | Limitations, restrictions, requirements |
+| belief | Opinions, views, stances |
+| experience | Past experiences, things tried, outcomes |
+| relationship | People, organisations, connections |
+
+## Contradiction handling
+
+When facts change, getmem preserves history with provenance:
+- Old memory marked SUPERSEDED_BY with timestamp
+- New memory created with source reference
+- Full history queryable, not deleted
+
+## Token cost savings
+
+Standard approach (full history):
+- 100-message conversation = 10,000–40,000 tokens per call
+- Every call billed at full history length
+- Costs compound as conversations grow
+
+getmem approach:
+- mem.get() returns 200–800 relevant tokens per call
+- Only memories matching the current query are returned
+- Token cost savings: typically 80–95%
+
+## Use cases
+
+**Production use cases (active now):**
+- Customer support agents
+- Developer copilots
+- AI writing assistants
+- Sales & CRM agents
+- AI tutors and learning apps
+- Smart home assistants
+- HR & onboarding agents
+- E-commerce personalisation
+- Travel & concierge AI
+- Legal & compliance agents
+
+**Emerging use cases:**
+- Companion robots (long-term relationship memory)
+- Wearable AI devices (AI pins, glasses, earbuds)
+- In-car AI assistants
+- Gaming NPCs with persistent memory
+- Autonomous long-running agents
+
+**Lifetime use cases (indefinite storage):**
+- Lifelong personal AI assistants
+- AI companions that grow with you
+- Family memory vaults
+- Long-term cognitive support
+
+## Integration patterns
+
+### With OpenAI
+
+```python
+import getmem_ai as getmem
+from openai import OpenAI
+
+mem = getmem.init("gm_live_...")
+client = OpenAI()
+
+def chat(user_id, user_message):
+    # Get memory
+    context = mem.get(user_id, query=user_message)["context"]
+
+    # Call LLM
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": f"You are helpful.\n\n## Memory\n{context}"},
+            {"role": "user", "content": user_message}
+        ]
+    )
+    reply = response.choices[0].message.content
+
+    # Save memory async
+    mem.ingest_conversation(user_id, user_message, reply)
+    return reply
+```
+
+### With Anthropic
+
+```python
+import anthropic
+import getmem_ai as getmem
+
+mem = getmem.init("gm_live_...")
+client = anthropic.Anthropic()
+
+context = mem.get(user_id, query=user_message)["context"]
+
+message = client.messages.create(
+    model="claude-3-haiku-20240307",
+    system=f"You are helpful.\n\n## Memory\n{context}",
+    messages=[{"role": "user", "content": user_message}],
+    max_tokens=1024,
+)
+```
+
+## GitHub repositories
+
+- Python SDK: https://github.com/getmem-ai/getmem
+- JavaScript SDK: https://github.com/getmem-ai/getmem-js
+
+## Links
+
+- Website: https://getmem.ai
+- Platform (API keys): https://platform.getmem.ai
+- Python SDK (PyPI): https://pypi.org/project/getmem-ai/
+- JavaScript SDK (npm): https://npmjs.com/package/getmem
+- Live demo: https://getmem.ai/demo-chat.html
+- Compact docs: https://getmem.ai/llms.txt
