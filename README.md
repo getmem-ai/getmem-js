@@ -51,7 +51,11 @@ const completion = await openai.chat.completions.create({
 const reply = completion.choices[0].message.content!;
 
 // 3. Save conversation to memory
-await mem.ingestConversation(userId, userMessage, reply);
+await mem.ingest(userId, [
+  { role: 'user', content: userMessage },
+  { role: 'assistant', content: reply },
+]);
+// Shorthand: mem.ingestConversation(userId, userMessage, reply);
 ```
 
 ## API
@@ -87,12 +91,20 @@ await mem.ingest('user-123', [
 ], 'session-abc');
 ```
 
-### `mem.ingestConversation(userId, userMessage, assistantMessage, sessionId?)`
+### `mem.ingest(userId, [
+  { role: 'user', content: userMessage },
+  { role: 'assistant', content: assistantMessage, sessionId? },
+]);
+// Shorthand: mem.ingestConversation(userId, userMessage, assistantMessage, sessionId?);`
 
 Convenience method for a single user+assistant exchange.
 
 ```typescript
-await mem.ingestConversation('user-123', 'I like fishing', 'Great hobby!');
+await mem.ingest('user-123', [
+  { role: 'user', content: 'I like fishing' },
+  { role: 'assistant', content: 'Great hobby!' },
+]);
+// Shorthand: mem.ingestConversation('user-123', 'I like fishing', 'Great hobby!');
 ```
 
 ### `mem.health()`
@@ -160,7 +172,11 @@ async function handleMessage(userId: string, message: string, session: any) {
   { role: 'user', content: message },
   { role: 'assistant', content: reply },
 ]);
-// Shorthand: await mem.ingestConversation(userId, message, reply);
+// Shorthand: await mem.ingest(userId, [
+  { role: 'user', content: message },
+  { role: 'assistant', content: reply },
+]);
+// Shorthand: mem.ingestConversation(userId, message, reply);
   return reply;
 }
 ```
@@ -184,5 +200,9 @@ metadata:
 import { GetMem } from 'getmem';
 const mem = new GetMem({ apiKey: process.env.GETMEM_API_KEY });
 const { context } = await mem.getContext(userId, userMessage);
-await mem.ingestConversation(userId, userMessage, reply);
+await mem.ingest(userId, [
+  { role: 'user', content: userMessage },
+  { role: 'assistant', content: reply },
+]);
+// Shorthand: mem.ingestConversation(userId, userMessage, reply);
 ```
